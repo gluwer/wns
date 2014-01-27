@@ -15,8 +15,8 @@
   "dependencies": {
   },
   "devDependencies": {
-    "mocha": "1.2.0",
-    "nock": "0.13.3"
+    "mocha": "~1.17.0",
+    "nock": "~0.27.1"
   },
   "homepage": "https://github.com/tjanczuk/wns",
   "repository": {
