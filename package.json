@@ -5,14 +5,35 @@
     "url": "http://tomasz.janczuk.org",
     "twitter": "tjanczuk"
   },
-  "version": "0.5.4-pre",
+  "contributors": [
+    {
+      "name": "Rafał Jońca",
+      "email": "rafal@gluwer.com",
+      "url": "http://gluwer.com/"
+    }
+  ],
+  "version": "0.6.0",
   "description": "Send push notifications to Windows 8 devices using WNS",
-  "tags" : ["azure", "sdk", "windows 8", "notifications", "wns"],
-  "tags" : ["azure", "sdk", "windows 8", "notifications", "wns"],
+  "tags": [
+    "azure",
+    "sdk",
+    "windows 8",
+    "notifications",
+    "wns"
+  ],
   "main": "./lib/wns.js",
-  "engines": { "node": ">= 0.6.17" },
-  "licenses": [ { "type": "Apache", "url": "http://www.apache.org/licenses/LICENSE-2.0" } ],
+  "engines": {
+    "node": ">= 0.6.17"
+  },
+  "licenses": [
+    {
+      "type": "Apache",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0"
+    }
+  ],
   "dependencies": {
+    "request": "~2.31.0",
+    "async": "~0.2.10"
   },
   "devDependencies": {
     "mocha": "~1.17.0",
@@ -23,7 +44,7 @@
     "type": "git",
     "url": "git@github.com:tjanczuk/wns.git"
   },
-  "bugs" : {
-    "url" : "http://github.com/tjanczuk/wns/issues"
+  "bugs": {
+    "url": "http://github.com/tjanczuk/wns/issues"
   }
 }

@@ -23,7 +23,7 @@ var currentRecord = 0;
 var channel = 'https://bn1.notify.windows.com/?token=AgYAAACFGdWBiRCTypHebfvngI7DuNBXWuGjdiczDOZ7bSgkbCRrD2M1b10CpzCmipzknHbU4nLzapQbooXzJ%2fVwHAfSl%2fWMk8OsetohEVMlsIicoLP99rDg7g2AdENA99DZoAU%3d'
 var options = {
 	client_id: 'ms-app://s-1-15-2-145565886-1510793020-2797717260-1526195933-3912359816-44086043-2211002316',
-	client_secret: 'FF9yfJLxSH3uI32wNKGye643bAZ4zBz7',
+	client_secret: 'FF9yfJLxSH3uI32wNKGye643bAZ4zBz7'
 };
 
 if (recordLiveSession) {
@@ -44,6 +44,7 @@ describe('wns.sendTile', function () {
 		for (var i in options) 
 			customOptions[i] = options[i];
 
+    wns.clearAccessTokenCache();
 		wns.sendTile(
 			channel, 
 			wns.createTileSquareText04Binding('Sample text 1'),
@@ -68,6 +69,7 @@ describe('wns.sendToast', function () {
 		for (var i in options) 
 			customOptions[i] = options[i];
 
+    wns.clearAccessTokenCache();
 		wns.sendToast(
 			channel, 
 			wns.createToastText01Binding('Sample text 4'),
@@ -139,6 +141,7 @@ for (var item in templateSpecs) {
 						// load mock HTTP traffic captured previously
 						mockScopes = require(nockFile).setupMockScopes(nock);
 
+          wns.clearAccessTokenCache();
 					wns['send' + templateName].apply(wns, params);
 				};
 
@@ -162,12 +165,59 @@ describe('wns.sendBadge', function () {
 		var mockScopes;
 		if (!recordLiveSession) 
 			// load mock HTTP traffic captured previously
-			mockScopes = require(nockFile).setupMockScopes(nock);		
+			mockScopes = require(nockFile).setupMockScopes(nock);
 
+    wns.clearAccessTokenCache();
 		wns.sendBadge(channel, 'alert', options, function (error, result) {
 			callback(error, result, done, nockFile, mockScopes);
 		});
 	});
+
+  it('succeeds with reusing a cache', function (done) {
+    var nockFile = path.resolve(nockRecordingsDir, 'Badge-success-cache.js');
+    var mockScopes;
+    mockScopes = require(nockFile).setupMockScopes(nock);
+
+    wns.clearAccessTokenCache();
+    wns.sendBadge(channel, 'alert', options, function (error, result) {
+      try {
+        assert.ifError(error);
+        assert.equal(typeof result, 'object', 'Result is an object');
+        assert.equal(typeof result.newAccessToken, 'string', 'New accessToken was obtained');
+        assert.equal(result.statusCode, 200, 'WNS response is HTTP 200');
+        assert.equal(typeof result.headers, 'object', 'HTTP response headers are present in the result');
+        assert.equal(result.headers['x-wns-notificationstatus'], 'received', 'Notification was received by WNS');
+        next1();
+      }
+      catch (e) {
+        console.log(e);
+        done(e);
+      }
+    });
+
+    function next1(e) {
+      if (e) return done(e);
+
+      wns.sendBadge(channel, 'alert', options, function (error, result) {
+        try {
+          assert.ifError(error);
+          assert.equal(typeof result, 'object', 'Result is an object');
+          assert.equal(typeof result.newAccessToken, 'undefined', 'New accessToken was not obtained');
+          assert.equal(result.statusCode, 200, 'WNS response is HTTP 200');
+          assert.equal(typeof result.headers, 'object', 'HTTP response headers are present in the result');
+          assert.equal(result.headers['x-wns-notificationstatus'], 'received', 'Notification was received by WNS');
+
+          mockScopes.forEach(function (scope) { scope.done(); });
+
+          done();
+        }
+        catch (e) {
+          console.log(e);
+          done(e);
+        }
+      });
+    }
+  });
 });
 
 
@@ -177,8 +227,9 @@ describe('wns.sendRaw', function () {
 		var mockScopes;
 		if (!recordLiveSession) 
 			// load mock HTTP traffic captured previously
-			mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);		
+			mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);
 
+    wns.clearAccessTokenCache();
 		wns.sendRaw(channel, "abc", options, function (error, result) {
 			callback(error, result, done, nockFile, mockScopes);
 		});
@@ -186,76 +237,197 @@ describe('wns.sendRaw', function () {
 });
 
 describe('wns.send', function () {
-	it('succeeds', function (done) {
-		var nockFile = path.resolve(nockRecordingsDir, 'Send-success.js');
-		var mockScopes;
-		if (!recordLiveSession) 
-			// load mock HTTP traffic captured previously
-			mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);		
+  it('succeeds', function (done) {
+    var nockFile = path.resolve(nockRecordingsDir, 'Send-success.js');
+    var mockScopes;
+    if (!recordLiveSession)
+    // load mock HTTP traffic captured previously
+      mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);
 
-		wns.send(channel, "<tile><visual><binding template=\"TileSquareBlock\"><text id=\"1\">http://textParam1.com</text><text id=\"2\">http://textParam2.com</text></binding></visual></tile>", 
-			'wns/tile', options, function (error, result) {
-			callback(error, result, done, nockFile, mockScopes);
-		});
-	});
+    wns.clearAccessTokenCache();
+    wns.send(channel, "<tile><visual><binding template=\"TileSquareBlock\"><text id=\"1\">http://textParam1.com</text><text id=\"2\">http://textParam2.com</text></binding></visual></tile>",
+      'wns/tile', options, function (error, result) {
+        callback(error, result, done, nockFile, mockScopes);
+      });
+  });
+
+  it('retries when 401 is received for the first time from cache', function (done) {
+    var nockFile = path.resolve(nockRecordingsDir, 'Send-success-401.js');
+    var mockScopes;
+    mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);
+
+    wns.clearAccessTokenCache();
+    var oldAccessToken;
+    wns.send(channel, "<tile><visual><binding template=\"TileSquareBlock\"><text id=\"1\">http://textParam1.com</text><text id=\"2\">http://textParam2.com</text></binding></visual></tile>", 'wns/tile', options, function (error, result) {
+      try {
+        assert.ifError(error);
+        assert.equal(typeof result, 'object', 'Result is an object');
+        assert.equal(typeof result.newAccessToken, 'string', 'New accessToken was obtained');
+        oldAccessToken = result.newAccessToken;
+        assert.equal(result.statusCode, 200, 'WNS response is HTTP 200');
+        assert.equal(typeof result.headers, 'object', 'HTTP response headers are present in the result');
+        assert.equal(result.headers['x-wns-notificationstatus'], 'received', 'Notification was received by WNS');
+        next1();
+      }
+      catch (e) {
+        console.log(e);
+        done(e);
+      }
+    });
+
+    function next1(e) {
+      if (e) return done(e);
+
+      wns.send(channel, "<tile><visual><binding template=\"TileSquareBlock\"><text id=\"1\">http://textParam1.com</text><text id=\"2\">http://textParam2.com</text></binding></visual></tile>", 'wns/tile', options, function (error, result) {
+        try {
+          assert.ifError(error);
+          assert.equal(typeof result, 'object', 'Result is an object');
+          assert.equal(typeof result.newAccessToken, 'string', 'New accessToken was not obtained');
+          assert.equal(result.newAccessToken != oldAccessToken, true, 'New accessToken was not obtained');
+          assert.equal(result.statusCode, 200, 'WNS response is HTTP 200');
+          assert.equal(typeof result.headers, 'object', 'HTTP response headers are present in the result');
+          assert.equal(result.headers['x-wns-notificationstatus'], 'received', 'Notification was received by WNS');
+
+          mockScopes.forEach(function (scope) { scope.done(); });
+
+          done();
+        }
+        catch (e) {
+          console.log(e);
+          done(e);
+        }
+      });
+    }
+  });
+
+  it('succeeds using pending notifications', function (done) {
+    var nockFile = path.resolve(nockRecordingsDir, 'Send-success-multi.js');
+    var mockScopes;
+    mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);
+
+    var multiCallback = function (error, result) {
+      try {
+        assert.ifError(error);
+        assert.equal(typeof result, 'object', 'Result is an object');
+        assert.equal(typeof result.newAccessToken, 'string', 'New accessToken was obtained');
+        assert.equal(result.statusCode, 200, 'WNS response is HTTP 200');
+        assert.equal(typeof result.headers, 'object', 'HTTP response headers are present in the result');
+        assert.equal(result.headers['x-wns-notificationstatus'], 'received', 'Notification was received by WNS');
+
+        if (countdown === 1) {
+          mockScopes.forEach(function (scope) { scope.done(); });
+          done();
+        } else {
+          countdown -= 1;
+        }
+      }
+      catch (e) {
+        console.log(e);
+        done(e);
+      }
+    };
+
+    wns.clearAccessTokenCache();
+    var countdown = 10;
+    for (var i = 0; i < countdown; ++i) {
+      wns.send(channel, "<tile><visual><binding template=\"TileSquareBlock\"><text id=\"1\">http://textParam1.com</text><text id=\"2\">http://textParam2.com</text></binding></visual></tile>", 'wns/tile', options, multiCallback);
+    }
+  });
 });
 
 describe('wns.sendToastText01 with audio and toast options', function () {
-	it('succeeds', function (done) {
-		var nockFile = path.resolve(nockRecordingsDir, 'SendToastText01WithAudioAndToastOptions-success.js');
-		var mockScopes;
-		if (!recordLiveSession) 
-			// load mock HTTP traffic captured previously
-			mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);		
+  it('succeeds', function (done) {
+    var nockFile = path.resolve(nockRecordingsDir, 'SendToastText01WithAudioAndToastOptions-success.js');
+    var mockScopes;
+    if (!recordLiveSession)
+    // load mock HTTP traffic captured previously
+      mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);
 
-		var options1 = {
-			client_id: options.client_id,
-			client_secret: options.client_secret,
-			audio: {
-				src: 'Alarm',
-				silent: false,
-				loop: true
-			},
-			launch: 'some random parameter passed to the application',
-			duration: 'long'
-		}
+    var options1 = {
+      client_id: options.client_id,
+      client_secret: options.client_secret,
+      audio: {
+        src: 'Alarm',
+        silent: false,
+        loop: true
+      },
+      launch: 'some random parameter passed to the application',
+      duration: 'long'
+    }
 
-		wns.sendToastText01(channel, 'A toast!', options1, function (error, result) {
-			callback(error, result, done, nockFile, mockScopes);
-		});
-	});
+    wns.clearAccessTokenCache();
+    wns.sendToastText01(channel, 'A toast!', options1, function (error, result) {
+      callback(error, result, done, nockFile, mockScopes);
+    });
+  });
 });
 
 describe('wns.sendToastText01 with non-string parameters', function () {
-	it('succeeds', function (done) {
-		var nockFile = path.resolve(nockRecordingsDir, 'SendToastText01WithAudioAndToastOptions-success.js');
-		var mockScopes;
-		if (!recordLiveSession) 
-			// load mock HTTP traffic captured previously
-			mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);		
+  it('succeeds', function (done) {
+    var nockFile = path.resolve(nockRecordingsDir, 'SendToastText01WithAudioAndToastOptions-success.js');
+    var mockScopes;
+    if (!recordLiveSession)
+    // load mock HTTP traffic captured previously
+      mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);
 
-		var options1 = {
-			client_id: options.client_id,
-			client_secret: options.client_secret,
-			audio: {
-				src: 'Alarm',
-				silent: false,
-				loop: true
-			},
-			launch: 'some random parameter passed to the application',
-			duration: 'long'
-		}
+    var options1 = {
+      client_id: options.client_id,
+      client_secret: options.client_secret,
+      audio: {
+        src: 'Alarm',
+        silent: false,
+        loop: true
+      },
+      launch: 'some random parameter passed to the application',
+      duration: 'long'
+    }
 
-		var params = {
-			text1: {
-				toString: function () {
-					return 'A toast!';
-				}
-			}
-		}
+    var params = {
+      text1: {
+        toString: function () {
+          return 'A toast!';
+        }
+      }
+    }
 
-		wns.sendToastText01(channel, params, options1, function (error, result) {
-			callback(error, result, done, nockFile, mockScopes);
-		});
-	});
+    wns.clearAccessTokenCache();
+    wns.sendToastText01(channel, params, options1, function (error, result) {
+      callback(error, result, done, nockFile, mockScopes);
+    });
+  });
+});
+
+describe('wns.sendToastText01 with non-string parameters', function () {
+  it('succeeds', function (done) {
+    var nockFile = path.resolve(nockRecordingsDir, 'SendToastText01WithAudioAndToastOptions-success.js');
+    var mockScopes;
+    if (!recordLiveSession)
+    // load mock HTTP traffic captured previously
+      mockScopes = require(nockFile).setupMockScopes(nock, mockScopes);
+
+    var options1 = {
+      client_id: options.client_id,
+      client_secret: options.client_secret,
+      audio: {
+        src: 'Alarm',
+        silent: false,
+        loop: true
+      },
+      launch: 'some random parameter passed to the application',
+      duration: 'long'
+    }
+
+    var params = {
+      text1: {
+        toString: function () {
+          return 'A toast!';
+        }
+      }
+    }
+
+    wns.clearAccessTokenCache();
+    wns.sendToastText01(channel, params, options1, function (error, result) {
+      callback(error, result, done, nockFile, mockScopes);
+    });
+  });
 });

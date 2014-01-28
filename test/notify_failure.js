@@ -105,7 +105,7 @@ describe('using invalid application credentials with notify.js', function () {
 			assert.equal(typeof error, 'object', 'There is an error');
 			assert.equal(error.statusCode, 400, 'The HTTP response status code is an expected 400');
 			assert.equal(typeof error.newAccessToken, 'undefined', 'Access token had not been obtained');
-			assert.equal(typeof error.innerError, 'string', 'OAuth response body is present')
+			assert.equal(typeof error.innerError, 'object', 'OAuth response body is present')
 		};
 
 		var wns = notify.createWnsContext(invalidOptions.client_secret, invalidOptions.client_id);

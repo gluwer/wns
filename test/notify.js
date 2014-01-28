@@ -14,6 +14,8 @@ exports.createWnsContext = function (client_secret, client_id) {
     // - accessToken is not passed back to the caller throught the callback
     // - only x-wns-* HTTP response headers are returned in the result or error
     var createWnsWrapper = function (method, client_id, client_secret, accessTokenContainer) {
+        wns.clearAccessTokenCache();
+
         var wnsMethod = wns[method];
         var wrapper = function () {
 

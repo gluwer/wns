@@ -71,8 +71,9 @@ describe('sending notification to an invalid channel', function () {
 		var mockScopes;
 		if (!recordLiveSession) 
 			// load mock HTTP traffic captured previously
-			mockScopes = require(nockFile).setupMockScopes(nock);		
+			mockScopes = require(nockFile).setupMockScopes(nock);
 
+    wns.clearAccessTokenCache();
 		wns.send(invalidChannel, validTile, 'wns/tile', options, function (error, result) {
 			callback(error, result, done, nockFile, mockScopes, function () {
 				assert.equal(typeof result, 'undefined', 'There is no result');
@@ -90,15 +91,16 @@ describe('using invalid application credentials', function () {
 		var mockScopes;
 		if (!recordLiveSession) 
 			// load mock HTTP traffic captured previously
-			mockScopes = require(nockFile).setupMockScopes(nock);		
+			mockScopes = require(nockFile).setupMockScopes(nock);
 
+    wns.clearAccessTokenCache();
 		wns.send(validChannel, validTile, 'wns/tile', invalidOptions, function (error, result) {
 			callback(error, result, done, nockFile, mockScopes, function () {
 				assert.equal(typeof result, 'undefined', 'There is no result');
 				assert.equal(typeof error, 'object', 'There is an error');
 				assert.equal(error.statusCode, 400, 'The HTTP response status code is an expected 400');
 				assert.equal(typeof error.newAccessToken, 'undefined', 'Access token had not been obtained');
-				assert.equal(typeof error.innerError, 'string', 'OAuth response body is present')
+				assert.equal(typeof error.innerError, 'object', 'OAuth response body is present')
 			});
 		});
 	});
